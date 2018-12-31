@@ -1,12 +1,20 @@
 Name:           vlmcsd
-Version:        svn1111
+Version:        svn1112
 Release:        1%{?dist}
 Summary:        A fully Microsoft compatible KMS server
 
 License:        Unknown
 URL:            https://github.com/Wind4/vlmcsd
 Source0:        https://github.com/Wind4/vlmcsd/archive/%{version}/%{name}-%{version}.tar.gz
-Patch0:         vlmcsd-svn1111-build.patch
+Source1:        vlmcsd.service
+Patch0:         vlmcsd-svn1112-build.patch
+
+BuildRequires: systemd-devel
+Requires(pre): /usr/sbin/useradd
+Requires(pre): /usr/sbin/groupadd
+Requires(preun): systemd-units
+Requires(postun): systemd-units
+Requires(post): systemd-units
 
 %description
 vlmcsd is a fully Microsoft compatible KMS server that provides product
@@ -23,17 +31,31 @@ changes.
 %prep
 %autosetup
 
-
 %build
 %make_build
-
 
 %install
 rm -rf $RPM_BUILD_ROOT
 %make_install
-mkdir -p $RPM_BUILD_ROOT/lib/systemd/system
-cp $RPM_SOURCE_DIR/vlmcsd.service $RPM_BUILD_ROOT/lib/systemd/system
+mkdir -p $RPM_BUILD_ROOT%{_unitdir}
+install -p -m 644 $RPM_SOURCE_DIR/vlmcsd.service $RPM_BUILD_ROOT%{_unitdir}/vlmcsd.service
 
+%pre
+# Add the "vlmcsd" group and user
+/usr/sbin/groupadd -r vlmcsd 2> /dev/null || :
+/usr/sbin/useradd -c "vlmcsd" -g vlmcsd -s /sbin/nologin -r vlmcsd -M 2> /dev/null || :
+
+%post
+%systemd_post vlmcsd.service
+
+%preun
+%systemd_preun vlmcsd.service
+
+%postun
+%systemd_postun
+
+%clean
+rm -rf $RPM_BUILD_ROOT
 
 %files
 /usr/bin/vlmcs
@@ -44,21 +66,14 @@ cp $RPM_SOURCE_DIR/vlmcsd.service $RPM_BUILD_ROOT/lib/systemd/system
 /usr/share/man/man5/vlmcsd.ini.5.gz
 /usr/share/man/man7/vlmcsd.7.gz
 /usr/share/man/man8/vlmcsd.8.gz
-/lib/systemd/system/vlmcsd.service
-
-
+%{_unitdir}/vlmcsd.service
 
 %changelog
-* Sun Sep  2 2018 - svn1111-1
-- Support for Windows Professional Workstation and Windows Professional Workstation N (aka Win 10 Pro for Advanced PCs)
-- Some internal code optimizations
-- Updated Visual C++ Platform Toolset to v141_xp
-- Updated gcc to 6.3.0 on many platforms
-- Removed 32-bit cygwin OpenSSL binary because 64-bit Cygwin no longer features 32-bit OpenSSL headers and libraries
-- Changed Windows build script to use MSBuild 2017
-- Updated groff formatting options for ASCII (TXT) man files
-- Added support for Enterprise G and Enterprise GN (Windows China Government Edition)
-- Added suffix _unused to some local parameters to indicate that MSVC compiler warnings can be ignored
-- Renamed some local parameters to avoid compiler warnings
-- Added casts to reduce MSVC compiler warnings
-- Fixed a bug in memory allocation, if .kmd file has less CSVLKs than built-in minimum
+* Mon Dec 31 2018 - svn1112-1
+- Support for Windows 10 1809, Windows Server 2019 and Office 2019 built-in
+- vlmcsd now has fully configurable CSVLKs that allow a custom EPID and HwId for each CSVLK to be specified.
+- Options -w, -0, -3, -6 and -G have been removed in favor for the new -a option.
+- The -H option has been redefined: It now allows a fixed host build to be specified in random EPIDs
+- New INI file directive HostBuild= that does the same as the new -H option.
+- Fix using configuration file vlmcsd.ini in systemd unit.
+- Run under vlmcsd user and group.

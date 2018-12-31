@@ -4,8 +4,9 @@ After=network.target
 
 [Service]
 Type=simple
-User=nobody
-ExecStart=/usr/bin/vlmcsd -D -l syslog
+User=vlmcsd
+Group=vlmcsd
+ExecStart=/usr/bin/vlmcsd -i /etc/vlmcsd/vlmcsd.ini -D
 
 [Install]
 WantedBy=multi-user.target
